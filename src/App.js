@@ -6,7 +6,7 @@ function App() {
   const $ = window.$;
 
   //********************************************** */
-  const ajax = true;
+  const AJAX = false;
   //********************************************** */
 
   const [users, setUsers] = useState([]);
@@ -16,11 +16,11 @@ function App() {
       searching: true,
       processing: true,
       paging: true,
-      // pageLength: 10,
+      pageLength: 5,
       // stateSave: true,
     };
 
-    if (!ajax) {
+    if (!AJAX) {
       fetchUsers();
     } else {
       dataTableOptions = {
@@ -39,6 +39,13 @@ function App() {
           },
         },
         columns: [
+          {
+            data: "id",
+            render: (id, type, row) => {
+              // console.log(row);
+              return '<button class="btn btn-link text-danger" onclick="handleDelete(id)">Delete</button>'; // NOT WORKING
+            },
+          },
           {
             data: "id",
           },
@@ -65,11 +72,19 @@ function App() {
     const response = await fetch("https://gorest.co.in/public/v1/users");
     const data = await response.json();
     setUsers(data.data);
-    console.log("data", data);
+    // console.log("data", data);
   }
 
-  const handleRowClick = (user) => {
+  const handleRowClick = (event, user) => {
+    event.preventDefault();
     alert(`You clicked on ${user.email}`);
+  };
+
+  const handleDelete = (event, id) => {
+    event.stopPropagation();
+    console.log("Deleting user " + id);
+    const newUsers = users.filter((x) => x.id !== id);
+    setUsers(newUsers);
   };
 
   return (
@@ -80,6 +95,7 @@ function App() {
           className="table table-no-more table-striped table-hover mb-0">
           <thead>
             <tr>
+              <th>Actions</th>
               <th>Id</th>
               <th>Email</th>
               <th>Gender</th>
@@ -87,12 +103,19 @@ function App() {
             </tr>
           </thead>
           <tbody>
-            {!ajax &&
+            {!AJAX &&
               users.map((user) => (
                 <tr
                   key={user.id}
-                  onClick={() => handleRowClick(user)}
+                  onClick={(event) => handleRowClick(event, user)}
                   role="button">
+                  <td>
+                    <button
+                      className="btn btn-link text-danger"
+                      onClick={(event) => handleDelete(event, user.id)}>
+                      Delete
+                    </button>
+                  </td>
                   <td>{user.id}</td>
                   <td>
                     <span
