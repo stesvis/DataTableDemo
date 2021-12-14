@@ -1,87 +1,101 @@
-// import "./App.css";
+import "./App.css";
 
 import { useEffect, useState } from "react";
+
+import DataTable from "react-data-table-component";
+
+// https://github.com/jbetancur/react-data-table-component
+// https://react-data-table-component.netlify.app/
 
 function App() {
   const $ = window.$;
 
   //********************************************** */
-  const AJAX = false;
+  const AJAX = true;
   //********************************************** */
 
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    let dataTableOptions = {
-      searching: true,
-      processing: true,
-      paging: true,
-      pageLength: 5,
-      // stateSave: true,
-    };
-
-    if (!AJAX) {
-      fetchUsers();
-    } else {
-      dataTableOptions = {
-        ...dataTableOptions,
-        serverSide: true,
-        ajax: {
-          type: "GET",
-          url: "https://gorest.co.in/public/v1/users",
-          dataSrc: (response) => {
-            console.log(response?.data);
-            setUsers(response?.data);
-            return response?.data;
-          },
-          error: (xhr, status, error) => {
-            console.error(error);
-          },
-        },
-        columns: [
-          {
-            data: "id",
-            render: (id, type, row) => {
-              // console.log(row);
-              return '<button class="btn btn-link text-danger" onclick="handleDelete(id)">Delete</button>'; // NOT WORKING
-            },
-          },
-          {
-            data: "id",
-          },
-          {
-            data: "email",
-          },
-          {
-            data: "gender",
-          },
-          {
-            data: "status",
-          },
-        ],
-      };
-    }
-
-    $("#users-table").DataTable(dataTableOptions);
-    return () => {
-      $("#users-table").DataTable().destroy();
-    };
+    fetchUsers();
+    return () => {};
   }, []);
 
+  const columns = [
+    {
+      name: "Actions",
+      cell: (row, index, column, id) => {
+        return (
+          <button
+            className="btn btn-link text-danger"
+            onClick={(event) => handleDelete(event, row.id)}>
+            Delete
+          </button>
+        );
+      },
+      button: true,
+    },
+    {
+      name: "Id",
+      selector: (row) => row.id,
+      sortable: true,
+    },
+    {
+      name: "Email",
+      cell: (row, index, column, id) => {
+        return (
+          <span
+            style={{
+              backgroundColor:
+                row.email.includes("@gmail.com") ||
+                row.email.includes("@hotmail.com")
+                  ? "yellow"
+                  : "unset",
+            }}>
+            {row.email}
+          </span>
+        );
+      },
+    },
+    {
+      name: "Name",
+      selector: (row) => row.name,
+    },
+    {
+      name: "Created",
+      selector: (row) => row.created_at,
+    },
+  ];
+
+  const paginationComponentOptions = {
+    rowsPerPageText: "Users per page",
+    rangeSeparatorText: "of",
+    selectAllRowsItem: true,
+    selectAllRowsItemText: "Show All",
+  };
+
   async function fetchUsers() {
-    const response = await fetch("https://gorest.co.in/public/v1/users");
+    const response = await fetch("http://127.0.0.1:8000/api/v1.0/users-test");
     const data = await response.json();
-    setUsers(data.data);
-    // console.log("data", data);
+    setUsers(data);
+    console.log("data", data);
   }
 
-  const handleRowClick = (event, user) => {
-    event.preventDefault();
-    alert(`You clicked on ${user.email}`);
+  const handlePageChange = (page) => {
+    console.log("Current page:", page);
+  };
+
+  const handlePerRowsChange = async (newPerPage, page) => {
+    console.log("Rows per page:", newPerPage);
+  };
+
+  const handleRowClick = (row) => {
+    // event.preventDefault();
+    console.log(row);
   };
 
   const handleDelete = (event, id) => {
-    event.stopPropagation();
+    // event.stopPropagation();
     console.log("Deleting user " + id);
     const newUsers = users.filter((x) => x.id !== id);
     setUsers(newUsers);
@@ -89,68 +103,24 @@ function App() {
 
   return (
     <div className="App">
-      <div className="container">
-        <table
-          id="users-table"
-          className="table table-no-more table-striped table-hover mb-0">
-          <thead>
-            <tr>
-              <th>Actions</th>
-              <th>Id</th>
-              <th>Email</th>
-              <th>Gender</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!AJAX &&
-              users.map((user) => (
-                <tr
-                  key={user.id}
-                  onClick={(event) => handleRowClick(event, user)}
-                  role="button">
-                  <td>
-                    <button
-                      className="btn btn-link text-danger"
-                      onClick={(event) => handleDelete(event, user.id)}>
-                      Delete
-                    </button>
-                  </td>
-                  <td>{user.id}</td>
-                  <td>
-                    <span
-                      style={{
-                        backgroundColor:
-                          user.email.includes("@gmail.com") ||
-                          user.email.includes("@hotmail.com")
-                            ? "yellow"
-                            : "unset",
-                      }}>
-                      {user.email}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        color: user.gender === "male" ? "blue" : "pink",
-                      }}>
-                      {user.gender}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        backgroundColor:
-                          user.status === "active" ? "unset" : "red",
-                        color: user.status === "active" ? "unset" : "white",
-                      }}>
-                      {user.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+      <div className="container pt-2">
+        <button
+          className="btn btn-primary mb-3"
+          onClick={() => {
+            console.log("Users state:", users);
+          }}>
+          Check Users
+        </button>
+
+        <DataTable
+          columns={columns}
+          data={users}
+          pagination
+          // paginationComponentOptions={paginationComponentOptions}
+          onChangeRowsPerPage={() => handlePerRowsChange()}
+          onChangePage={() => handlePageChange()}
+          onRowClicked={(row) => handleRowClick(row)}
+        />
       </div>
     </div>
   );
