@@ -2,77 +2,28 @@
 
 import { useEffect, useState } from "react";
 
+import Enumerable from "linq";
+import TablePagination from "./TablePagination";
+
 function App() {
-  const $ = window.$;
-
-  //********************************************** */
-  const AJAX = false;
-  //********************************************** */
-
-  const [users, setUsers] = useState([]);
+  const [usersResponse, setUsersResponse] = useState();
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
-    let dataTableOptions = {
-      searching: true,
-      processing: true,
-      paging: true,
-      pageLength: 5,
-      // stateSave: true,
-    };
+    fetchUsers();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (!AJAX) {
-      fetchUsers();
-    } else {
-      dataTableOptions = {
-        ...dataTableOptions,
-        serverSide: true,
-        ajax: {
-          type: "GET",
-          url: "https://gorest.co.in/public/v1/users",
-          dataSrc: (response) => {
-            console.log(response?.data);
-            setUsers(response?.data);
-            return response?.data;
-          },
-          error: (xhr, status, error) => {
-            console.error(error);
-          },
-        },
-        columns: [
-          {
-            data: "id",
-            render: (id, type, row) => {
-              // console.log(row);
-              return '<button class="btn btn-link text-danger" onclick="handleDelete(id)">Delete</button>'; // NOT WORKING
-            },
-          },
-          {
-            data: "id",
-          },
-          {
-            data: "email",
-          },
-          {
-            data: "gender",
-          },
-          {
-            data: "status",
-          },
-        ],
-      };
-    }
-
-    $("#users-table").DataTable(dataTableOptions);
-    return () => {
-      $("#users-table").DataTable().destroy();
-    };
-  }, []);
-
-  async function fetchUsers() {
-    const response = await fetch("https://gorest.co.in/public/v1/users");
+  async function fetchUsers(
+    url = `http://127.0.0.1:8000/api/v1.0/users?paginate=${pageSize}`
+  ) {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: "Bearer 15|vDsnCbQAUVhfWE4nfjYXRcUfYPYJmOBUxjTqkg0f",
+      },
+    });
     const data = await response.json();
-    setUsers(data.data);
-    // console.log("data", data);
+    const links = data?.meta?.links.slice(1, -1);
+    setUsersResponse({ ...data, meta: { ...data.meta, links: links } });
   }
 
   const handleRowClick = (event, user) => {
@@ -83,8 +34,17 @@ function App() {
   const handleDelete = (event, id) => {
     event.stopPropagation();
     console.log("Deleting user " + id);
-    const newUsers = users.filter((x) => x.id !== id);
-    setUsers(newUsers);
+    const newUsers = usersResponse?.data?.filter((x) => x.id !== id);
+    setUsersResponse({ ...usersResponse, data: newUsers });
+  };
+
+  const handlePageChange = async (url) => {
+    console.log("Current page:", url);
+    await fetchUsers(url);
+  };
+
+  const handlePageSizeChange = async (newPerPage, page) => {
+    console.log("Rows per page:", newPerPage);
   };
 
   return (
@@ -103,54 +63,64 @@ function App() {
             </tr>
           </thead>
           <tbody>
-            {!AJAX &&
-              users.map((user) => (
-                <tr
-                  key={user.id}
-                  onClick={(event) => handleRowClick(event, user)}
-                  role="button">
-                  <td>
-                    <button
-                      className="btn btn-link text-danger"
-                      onClick={(event) => handleDelete(event, user.id)}>
-                      Delete
-                    </button>
-                  </td>
-                  <td>{user.id}</td>
-                  <td>
-                    <span
-                      style={{
-                        backgroundColor:
-                          user.email.includes("@gmail.com") ||
-                          user.email.includes("@hotmail.com")
-                            ? "yellow"
-                            : "unset",
-                      }}>
-                      {user.email}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        color: user.gender === "male" ? "blue" : "pink",
-                      }}>
-                      {user.gender}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        backgroundColor:
-                          user.status === "active" ? "unset" : "red",
-                        color: user.status === "active" ? "unset" : "white",
-                      }}>
-                      {user.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+            {usersResponse?.data?.map((user) => (
+              <tr
+                key={user.id}
+                onClick={(event) => handleRowClick(event, user)}
+                role="button">
+                <td>
+                  <button
+                    className="btn btn-link text-danger"
+                    onClick={(event) => handleDelete(event, user.id)}>
+                    Delete
+                  </button>
+                </td>
+                <td>{user.id}</td>
+                <td>
+                  <span
+                    style={{
+                      backgroundColor:
+                        user.email.includes("@gmail.com") ||
+                        user.email.includes("@hotmail.com")
+                          ? "yellow"
+                          : "unset",
+                    }}>
+                    {user.email}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    style={{
+                      color: user.gender === "male" ? "blue" : "pink",
+                    }}>
+                    {user.gender}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    style={{
+                      backgroundColor:
+                        user.status === "active" ? "unset" : "red",
+                      color: user.status === "active" ? "unset" : "white",
+                    }}>
+                    {user.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
+
+        <TablePagination
+          firstPage={usersResponse?.meta?.from}
+          lastPage={usersResponse?.meta?.last_page}
+          totalSize={usersResponse?.meta?.total}
+          pageSize={pageSize}
+          links={usersResponse?.meta?.links}
+          prevLink={usersResponse?.links?.prev}
+          nextLink={usersResponse?.links?.next}
+          onPageChange={(url) => handlePageChange(url)}
+        />
       </div>
     </div>
   );
