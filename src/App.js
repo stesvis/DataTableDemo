@@ -57,9 +57,9 @@ function App() {
             <tr>
               <th>Actions</th>
               <th>Id</th>
+              <th>Name</th>
               <th>Email</th>
-              <th>Gender</th>
-              <th>Status</th>
+              <th>Created On</th>
             </tr>
           </thead>
           <tbody>
@@ -76,6 +76,7 @@ function App() {
                   </button>
                 </td>
                 <td>{user.id}</td>
+                <td>{user.name}</td>
                 <td>
                   <span
                     style={{
@@ -88,24 +89,7 @@ function App() {
                     {user.email}
                   </span>
                 </td>
-                <td>
-                  <span
-                    style={{
-                      color: user.gender === "male" ? "blue" : "pink",
-                    }}>
-                    {user.gender}
-                  </span>
-                </td>
-                <td>
-                  <span
-                    style={{
-                      backgroundColor:
-                        user.status === "active" ? "unset" : "red",
-                      color: user.status === "active" ? "unset" : "white",
-                    }}>
-                    {user.status}
-                  </span>
-                </td>
+                <td>{new Date(user?.created_at).toDateString()}</td>
               </tr>
             ))}
           </tbody>
