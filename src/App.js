@@ -2,24 +2,30 @@ import "./App.css";
 
 import { useEffect, useState } from "react";
 
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import DataTable from "react-data-table-component";
+import DataTablePagination from "./DataTablePagination";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 // https://github.com/jbetancur/react-data-table-component
 // https://react-data-table-component.netlify.app/
 
 function App() {
-  const $ = window.$;
-
-  //********************************************** */
-  const AJAX = true;
-  //********************************************** */
-
-  const [users, setUsers] = useState([]);
+  const [usersResponse, setUsersResponse] = useState();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [isBusy, setIsBusy] = useState(false);
+  const [sortOptions, setSortOptions] = useState({
+    column: "id",
+    direction: "asc",
+  });
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(
+      `http://127.0.0.1:8000/api/v1.0/users?paginate=${pageSize}&page=${currentPage}&sortColumn=${sortOptions.column}&sortDirection=${sortOptions.direction}`
+    );
     return () => {};
-  }, []);
+  }, [pageSize, currentPage, sortOptions]);
 
   const columns = [
     {
@@ -37,17 +43,20 @@ function App() {
     },
     {
       name: "Id",
-      selector: (row) => row.id,
       sortable: true,
+      sortField: "id",
+      selector: (row) => row.id,
     },
     {
       name: "Email",
+      sortable: true,
+      sortField: "email",
       cell: (row, index, column, id) => {
         return (
           <span
             style={{
               backgroundColor:
-                row.email.includes("@gmail.com") ||
+                row.email.includes("@levitica.ca") ||
                 row.email.includes("@hotmail.com")
                   ? "yellow"
                   : "unset",
@@ -59,11 +68,15 @@ function App() {
     },
     {
       name: "Name",
+      sortable: true,
+      sortField: "name",
       selector: (row) => row.name,
     },
     {
       name: "Created",
-      selector: (row) => row.created_at,
+      sortable: true,
+      sortField: "created_at",
+      selector: (row) => new Date(row.created_at).toDateString(),
     },
   ];
 
@@ -74,19 +87,37 @@ function App() {
     selectAllRowsItemText: "Show All",
   };
 
-  async function fetchUsers() {
-    const response = await fetch("http://127.0.0.1:8000/api/v1.0/users-test");
-    const data = await response.json();
-    setUsers(data);
-    console.log("data", data);
+  async function fetchUsers(
+    url = `http://127.0.0.1:8000/api/v1.0/users?paginate=${pageSize}`
+  ) {
+    try {
+      setIsBusy(true);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: "Bearer 15|vDsnCbQAUVhfWE4nfjYXRcUfYPYJmOBUxjTqkg0f",
+        },
+      });
+      const data = await response.json();
+      const links = data?.meta?.links.slice(1, -1);
+      setUsersResponse({ ...data, meta: { ...data.meta, links: links } });
+      setIsBusy(false);
+    } catch (err) {
+      setIsBusy(false);
+    }
   }
 
   const handlePageChange = (page) => {
     console.log("Current page:", page);
+    setCurrentPage(page);
   };
 
-  const handlePerRowsChange = async (newPerPage, page) => {
+  const handleDataTablePageChange = async (urlParams) => {
+    await fetchUsers(urlParams);
+  };
+
+  const handleRowsPerPageChange = async (newPerPage, page) => {
     console.log("Rows per page:", newPerPage);
+    setPageSize(newPerPage);
   };
 
   const handleRowClick = (row) => {
@@ -94,11 +125,15 @@ function App() {
     console.log(row);
   };
 
+  const handleSort = (column, sortDirection) => {
+    setSortOptions({ column: column.sortField, direction: sortDirection });
+  };
+
   const handleDelete = (event, id) => {
     // event.stopPropagation();
     console.log("Deleting user " + id);
-    const newUsers = users.filter((x) => x.id !== id);
-    setUsers(newUsers);
+    const newUsers = usersResponse?.data?.filter((x) => x.id !== id);
+    setUsersResponse(newUsers);
   };
 
   return (
@@ -107,19 +142,39 @@ function App() {
         <button
           className="btn btn-primary mb-3"
           onClick={() => {
-            console.log("Users state:", users);
+            console.log("Users state:", usersResponse);
           }}>
           Check Users
         </button>
 
         <DataTable
+          title="Users"
           columns={columns}
-          data={users}
-          pagination
+          data={usersResponse?.data}
+          responsive
+          highlightOnHover
+          // pagination
+          // paginationServer
+          // paginationTotalRows={usersResponse?.meta?.total}
+          // paginationPerPage={pageSize}
+          // paginationRowsPerPageOptions={[5, 15, 25, 50]}
+          // progressPending={isBusy}
           // paginationComponentOptions={paginationComponentOptions}
-          onChangeRowsPerPage={() => handlePerRowsChange()}
-          onChangePage={() => handlePageChange()}
+          onChangeRowsPerPage={(newPerPage, page) =>
+            handleRowsPerPageChange(newPerPage, page)
+          }
+          onChangePage={(page) => handlePageChange(page)}
           onRowClicked={(row) => handleRowClick(row)}
+          sortIcon={<KeyboardArrowDownIcon />}
+          onSort={(column, sortDirection) => handleSort(column, sortDirection)}
+        />
+        <DataTablePagination
+          totalSize={usersResponse?.meta?.total}
+          pageSize={pageSize}
+          links={usersResponse?.meta?.links}
+          prevLink={usersResponse?.links?.prev}
+          nextLink={usersResponse?.links?.next}
+          onPageChange={(url) => handleDataTablePageChange(url)}
         />
       </div>
     </div>
